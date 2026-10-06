@@ -32,12 +32,14 @@ rclone lsd "$REMOTE:$BUCKET" >/dev/null 2>&1 || rclone lsf "$REMOTE:$BUCKET" --m
   || { echo "can't reach $REMOTE:$BUCKET: check the API token's bucket scope"; exit 1; }
 
 echo "== build (images at $ASSET_BASE)"
+.venv/bin/python image_index.py --thumbs     # image pages: shards + photo thumbnails (incremental)
 .venv/bin/python build_site.py --asset-base "$ASSET_BASE"
+.venv/bin/python og_cards.py                # social-preview cards + og.json (incremental)
 
 echo "== upload dist/media -> $REMOTE:$BUCKET"
 # copy, not sync: never deletes objects from the bucket. Unchanged files are skipped by size+modtime.
-rclone copy dist/media "$REMOTE:$BUCKET" --transfers 32 --checkers 32 --fast-list --progress \
-  --header-upload "Content-Type: image/webp" $DRY
+# content types are set by pages/functions/media from the file extension
+rclone copy dist/media "$REMOTE:$BUCKET" --transfers 32 --checkers 32 --fast-list --progress $DRY
 
 if [ "$DEPLOY" = 1 ]; then
   echo "== deploy dist/site -> Pages project $PAGES_PROJECT"

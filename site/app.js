@@ -1,6 +1,12 @@
 // Microscope viewer. Columns: architecture | units of the current layer | main panel.
 // Routes: /<model>, /<model>/<layer>[?b=<branch>], /<model>/<layer>/<unit>
 
+// Extension points for site/ext/*.js (loaded before this file; they only register here and call the
+// globals below at runtime): routes by first path segment, panels appended to unit pages, alternative
+// circuit views drawn into #circuit-ext, and an optional link target for dataset-example crops.
+const MS = (window.MS ||= {});
+MS.routes ||= {}; MS.unitPanels ||= []; MS.circuitViews ||= [];
+
 const cols = document.getElementById("cols");
 const crumbs = document.getElementById("crumbs");
 const tools = document.getElementById("bar-tools");
@@ -249,6 +255,8 @@ async function route() {
   tools.innerHTML = "";
   if (!modelName) return homePage(m);
   if (modelName === "glossary") return glossaryPage(m.models[0]);
+  if (MS.routes[modelName]) return MS.routes[modelName]({ manifest: m, segments: [layerName, third, fourth].filter(x => x !== undefined),
+    params: new URLSearchParams(location.search) });
   let model = m.models.find(x => x.name === modelName);
   if (!model) return notFound(null, `No model "${modelName}".`);
   currentBase = baseOf(model);
@@ -457,9 +465,13 @@ async function unitPage(model, layer, unit) {
   rows.forEach(r => counts[r.label] = (counts[r.label] || 0) + 1);
   const classes = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 6)
     .map(([k, v]) => `${esc(k)}${v > 1 ? ` ×${v}` : ""}`).join(", ");
-  const examples = rows.map((r, k) => `<div class="ex" title="${esc(r.label)} · activation ${fmt(r.act)} · val image ${r.img}">
+  const examples = rows.map((r, k) => {
+    const href = MS.exampleHref?.(model, layer.name, unit, k, r);
+    const tag = href ? `a href="${href}" data-link` : "div";
+    return `<${tag} class="ex" title="${esc(r.label)} · activation ${fmt(r.act)} · val image ${r.img}">
       ${exImg(model, layer.name, unit, k, r.label)}
-      <div class="cap"><span>${esc(r.label)}</span><span>${fmt(r.act)}</span></div></div>`).join("");
+      <div class="cap"><span>${esc(r.label)}</span><span>${fmt(r.act)}</span></div></${href ? "a" : "div"}>`;
+  }).join("");
 
   // ---- circuit section: channels get gradient/ablation circuits, SAE features get their channel recipe
   let circuitHtml;
@@ -483,6 +495,7 @@ async function unitPage(model, layer, unit) {
          Percentages are each unit's share of the activation it feeds.${archNote}`;
     circuitHtml = `<div class="circuit-head"><h2>Circuit <a class="help" href="/glossary#circuit" data-link title="What is this?">?</a></h2><span id="circuit-method"></span></div>
       <p class="sub">${how}</p>
+      <div id="circuit-ext"></div>
       <div class="circuit">
         ${prev ? circuitSide(model, `Built from ${prev.name}`, `Units in ${prev.name} that raise or lower this unit.`, prev.name, circ.in, prevLabels, missing)
                : `<div class="side"><h3>Built from pixels</h3><p class="muted">${layer.name} reads the image directly.</p></div>`}
@@ -543,7 +556,14 @@ async function unitPage(model, layer, unit) {
         <div class="examples">${examples || '<p class="muted">No dataset examples yet.</p>'}</div>
       </section>
     </div>
-    ${textHtml}${circuitHtml}${saeHtml}`));
+    ${textHtml}${circuitHtml}${saeHtml}<div id="ext-panels"></div>`));
+
+  const extCtx = { model, base, layer, unit, isSae, rows, labels };
+  const circuitEl = document.getElementById("circuit-ext");
+  for (const view of circuitEl ? MS.circuitViews : [])
+    Promise.resolve().then(() => view({ ...extCtx, el: circuitEl, circuits, method })).catch(e => console.warn("circuit view", e));
+  for (const panel of MS.unitPanels)
+    Promise.resolve().then(() => panel({ ...extCtx, el: document.getElementById("ext-panels") })).catch(e => console.warn("unit panel", e));
 
   const slot = document.getElementById("circuit-method");
   if (slot) slot.append(segmented([["gradient", "Gradient estimate"], ["ablation", "Ablation test"]], method,

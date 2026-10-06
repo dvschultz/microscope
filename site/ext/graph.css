@@ -1,0 +1,49 @@
+/* graph extension: circuit graph on unit pages (site/ext/graph.js) */
+#circuit-ext:empty { display: none; }
+.cg-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 4px 0 10px; }
+.cg-controls { display: contents; }
+.cg-controls[hidden] { display: none; }
+.cg-min { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 12px; }
+.cg-min input { width: 120px; accent-color: var(--accent); }
+.cg-min output { color: var(--text); min-width: 44px; font-variant-numeric: tabular-nums; }
+.cg-legend { display: inline-flex; align-items: center; gap: 5px; color: var(--muted); font-size: 12px; }
+.cg-legend i { display: inline-block; width: 14px; height: 3px; border-radius: 1px; }
+.cg-legend i.pos { background: var(--pos); }
+.cg-legend i.neg { background: var(--neg); margin-left: 6px; }
+
+.cg-wrap { width: 100%; overflow-x: auto; margin-bottom: 8px; }
+.cg { position: relative; }
+.cg-edges { position: absolute; left: 0; top: 0; overflow: visible; }
+.cg-edges path { fill: none; stroke-linecap: round; transition: stroke-opacity .12s; }
+.cg-edges path.pos { stroke: var(--pos); }
+.cg-edges path.neg { stroke: var(--neg); }
+.cg.hovering .cg-edges path { stroke-opacity: .07; }
+.cg.hovering .cg-edges path.hl { stroke-opacity: .95; }
+
+.cg-head { position: absolute; top: 0; transform: translateX(-50%); white-space: nowrap; font-size: 11px; color: var(--muted); }
+.cg-head.cur { color: var(--text); font-weight: 600; }
+.cg-end { position: absolute; font-size: 11px; color: var(--faint); white-space: nowrap; }
+
+.cg-node { position: absolute; display: block; background: var(--panel-2); outline: 1px solid var(--line); transition: opacity .12s; }
+.cg-node img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.cg-node:hover { outline: 2px solid var(--accent); z-index: 2; }
+.cg-node.cur { outline: 2px solid var(--accent); outline-offset: 1px; }
+.cg.hovering .cg-node:not(.near):not(:hover) { opacity: .35; }
+.cg-node .n { font-size: 10px; }
+.cg-w { position: absolute; top: 1px; font-size: 10px; color: var(--pos); white-space: nowrap;
+  font-variant-numeric: tabular-nums; pointer-events: none; }
+.cg-w.neg { color: var(--neg); }
+.cg-w.r { left: calc(100% + 5px); }
+.cg-w.l { right: calc(100% + 5px); }
+.cg-lbl { position: absolute; top: 50%; transform: translateY(-50%); font-size: 11px; line-height: 1.25; color: var(--muted);
+  pointer-events: none; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.cg-lbl.l { right: calc(100% + 8px); text-align: right; }
+.cg-lbl.r { left: calc(100% + 8px); }
+.cg-node:hover .cg-lbl { color: var(--text); }
+
+.cg-tip { position: absolute; z-index: 5; width: 220px; padding: 6px 8px; background: var(--panel); border: 1px solid var(--line);
+  border-radius: 3px; font-size: 11px; line-height: 1.45; color: var(--muted); pointer-events: none; box-shadow: 0 4px 14px rgba(0, 0, 0, .45); }
+.cg-tip b { color: var(--text); font-weight: 600; }
+.cg-tip .cg-tl { color: var(--text); margin-bottom: 3px; }
+.cg-tip .pos { color: var(--pos); } .cg-tip .neg { color: var(--neg); }
+.cg-tip span { display: inline-block; min-width: 44px; font-variant-numeric: tabular-nums; }

@@ -94,6 +94,33 @@ def tree_stats(root, exts=None):
     return n, size
 
 
+# ---------- image pages (image_index.py) ----------
+# The shards (site/assets/_images/*.json) ride along with the JSON copy above. The photo thumbnails are images, so they
+# go to dist/media/_images/thumbs/ (hardlinked: same bytes, no second copy on disk); the viewer derives their URL from
+# the manifest's media prefix.
+def build_image_thumbs():
+    shards = list((SITE / "assets" / "_images").glob("*.json"))
+    if shards and stale(min(shards, key=lambda p: p.stat().st_mtime), list((SITE / "assets").glob("*/*/units.json"))):
+        print("image pages: a units.json is newer than the image index, re-run python image_index.py")
+    src = SITE / "assets" / "_images" / "thumbs"
+    if not src.exists():
+        return
+    dst = DIST / "media" / "_images" / "thumbs"
+    dst.mkdir(parents=True, exist_ok=True)
+    n = 0
+    for p in src.glob("*.webp"):
+        out = dst / p.name
+        if not stale(out, [p]):
+            continue
+        out.unlink(missing_ok=True)
+        try:
+            os.link(p, out)
+        except OSError:
+            shutil.copy2(p, out)
+        n += 1
+    print(f"image pages: {n} thumbnails linked into {dst.relative_to(ROOT)}")
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--asset-base", default="/media",
@@ -134,7 +161,14 @@ def main():
         (site / mp.name).write_text(json.dumps(rewrite_manifest(mp, base), indent=1))
     for f in ["index.html", "app.js", "style.css"]:
         shutil.copy2(SITE / f, site / f)
+    if (SITE / "ext").exists():      # viewer extensions (site/ext/*.js, *.css)
+        shutil.copytree(SITE / "ext", site / "ext", dirs_exist_ok=True)
     (site / "_redirects").write_text("/* /index.html 200\n")
+    # Pages Functions run only on page URLs (social-preview tags) and /media (images); static files skip them
+    (site / "_routes.json").write_text(json.dumps({"version": 1, "include": ["/*"], "exclude": [
+        "/app.js", "/style.css", "/manifest.json", "/manifest_sae.json", "/assets/*", "/ext/*"]}))
+
+    build_image_thumbs()
 
     n_site, s_site = tree_stats(site)
     n_media, s_media = tree_stats(media)

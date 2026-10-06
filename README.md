@@ -64,6 +64,13 @@ Each unit page has a **circuit panel**:
 
 The panel is measured on the unit's top 16 dataset images, as activation × gradient at the unit's peak, and each entry is shown as a share of the target unit's activation (`circuits.py`). As a check against Distill's Curve Detectors article: 11 of its 14 mixed4a curve units have a mixed3b curve detector among their top 8 inputs, against 13% of random units.
 
+### Exploring across units and networks
+
+Each of these lives in its own `site/ext/*.js` file. The extension hooks are documented at the top of `site/app.js`.
+- **Circuit graph** (`ext/graph.js`): the circuit panel can draw as a network graph, with layers as columns and edge thickness showing strength. Green edges excite, red inhibit. It expands to 2 hops, has a strength slider, and clicking a node recenters on it. Graph | List switches back to the tiles.
+- **Image pages** (`ext/images.js`, `image_index.py`): `/image/<id>` shows one ImageNet-val photo with every unit, in every network and the SAE lens, that ranks it among its top 16. Hovering shows each unit's crop on the photo, and dataset-example crops on unit pages link here. The index is sharded (`site/assets/_images/*.json`, 196 files), with 256px thumbnails (49k WebP, about 530 MB).
+- **Similar units in other networks** (`ext/compare.js`, `similar.py`): each unit page lists the units in the other networks, and in other layers of its own, whose peak activations correlate with it best (Pearson r over 8,000 val images, computed in about 10 min on two A5000s). `/compare?a=<model>/<layer>/<unit>&b=…` shows two units side by side. The data is sharded per 256 units (`similar/<k>.json`), and SAE features active on under 1% of images are marked as noisy.
+
 ## Timings
 
 The dataset pass for all layers takes 56 s on an A5000 (103 s on the M5 Pro). Crops take about 30 s per layer.
@@ -114,6 +121,8 @@ Measured on 2026-10-05, with InceptionV1 channels for all 12 layers plus SAE fea
 | `dist/site` (static) | 59 | 24.5 MB |
 
 **Live setup: microscope.artificial-images.com.** `./publish.sh` builds with images at `/media`, uploads `dist/media` to the R2 bucket `microscope-media` with rclone, and deploys `dist/site` to the Pages project `microscope` from `pages/`. The `wrangler.toml` there binds the bucket, and `pages/functions/media/[[path]].js` serves `/media/*` from it through the edge cache. That keeps everything on one hostname even though artificial-images.com's DNS is on Netlify: R2 custom domains need the DNS on Cloudflare, so a single CNAME record `microscope` → `microscope.pages.dev` in Netlify DNS is enough. Function calls are free up to 100k a day. `./publish.sh --dry-run` shows what would upload without changing anything.
+
+**Social previews.** Link crawlers don't run JavaScript, so `pages/functions/_middleware.js` adds per-URL `<title>`, description, Open Graph and Twitter card tags to each HTML response. The card images are 900×472 JPEGs (laid out at 1200×630) from `og_cards.py`: one per unit and SAE feature (its feature vis, six dataset examples and its label), plus layer, network and home cards. That's about 38k cards, around 3.2 GB, in R2 under `/media/og/`. The titles come from a small `og.json` per layer. `publish.sh` runs it; it only renders missing cards. The static files listed in `_routes.json` skip the functions, so the only function calls are page loads and `/media` images.
 
 The older two-host variant, with images on a separate R2 domain:
 

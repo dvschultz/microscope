@@ -1,0 +1,25 @@
+/* compare extension: similar-units panel on unit pages, /compare */
+.sim-links { grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); }
+.link.sim { position: relative; }
+.link.sim .img { display: block; }
+.link.sim .cmp { display: block; padding: 0 5px 4px; font-size: 11px; color: var(--faint); }
+.link.sim .cmp:hover { color: var(--accent); }
+
+.cmp-head { display: flex; align-items: baseline; gap: 12px; }
+.cmp-swap { color: var(--muted); border: 1px solid var(--line); border-radius: 3px; padding: 1px 8px; font-size: 12px; }
+.cmp-swap:hover { color: var(--text); border-color: var(--muted); }
+.cmp-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; align-items: start; }
+.cmp-side { min-width: 0; }
+.cmp-side h2 { margin-top: 8px; }
+.cmp-side .sub b { color: var(--text); font-weight: 600; }
+.cmp-vis { max-width: 360px; aspect-ratio: 1; background: var(--panel); }
+.cmp-vis img { width: 100%; height: 100%; object-fit: cover; }
+.cmp-classes .shared { color: var(--accent); }
+.cmp-ex { grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); }
+.cmp-alts { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 2px; }
+.cmp-alts a { position: relative; aspect-ratio: 1; background: var(--panel-2); }
+.cmp-alts a img { width: 100%; height: 100%; object-fit: cover; }
+.cmp-alts a:hover { outline: 2px solid var(--accent); outline-offset: -2px; z-index: 1; }
+@media (max-width: 900px) { .cmp-grid { grid-template-columns: 1fr; } }
+.link.sim .lbl em { font-style: normal; color: var(--neg); }
+.link.sim.rare .w i { background: var(--faint); }

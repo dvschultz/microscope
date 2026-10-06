@@ -300,3 +300,7 @@ code { font-family: inherit; color: var(--text); background: #22242a; padding: 1
   border: 1px solid var(--line);
 }
 .words em { font-style: normal; font-size: 10px; color: var(--muted); }
+
+/* dataset examples can be links (MS.exampleHref) */
+a.ex { display: block; color: inherit; }
+a.ex:hover { outline: 2px solid var(--accent); outline-offset: -2px; }
