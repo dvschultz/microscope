@@ -1,0 +1,9 @@
+# Cloudflare Pages project for microscope.artificial-images.com.
+# Static site: ../dist/site (built by build_site.py). Images: R2 bucket, served at /media/* by functions/media.
+name = "microscope"
+pages_build_output_dir = "../dist/site"
+compatibility_date = "2026-10-01"
+
+[[r2_buckets]]
+binding = "MEDIA"
+bucket_name = "microscope-media"

@@ -1,0 +1,13 @@
+.venv/
+data/
+__pycache__/
+cache/
+site/assets/
+site/manifest.json
+dist/
+pages/.wrangler/
+
+# local working notes and generated data
+STATUS.md
+PROMPT.md
+site/manifest_sae.json

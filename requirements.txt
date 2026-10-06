@@ -1,0 +1,10 @@
+# Python 3.12. Versions are the ones this was built with; newer usually work.
+torch>=2.6
+torchvision
+torch-lucent==0.1.8
+kornia==0.4.1          # lucent's transforms need the old kornia API
+numpy
+pillow
+pyarrow
+tqdm
+open-clip-torch        # only for the CLIP ResNet-50 model
