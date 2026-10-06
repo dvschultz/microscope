@@ -715,6 +715,31 @@ async function figMadeOf() {
     <figcaption>Feature 1289 (speedometer dials) as a weighted mix of channels. No single channel is a speedometer detector.</figcaption></figure>`;
 }
 
+// a photo and how many units rank it among their top examples (image pages, site/ext/images.js)
+async function figImagePage() {
+  const id = 19778, base = gModel();
+  const shard = await getJSON(`/assets/_images/${String(Math.floor(id / 256)).padStart(3, "0")}.json`);
+  const n = (shard.images?.[id]?.e || []).length;   // shard layout: {models, layers, images: {id: {label, e: [entries]}}}
+  const thumb = `${base.paths.vis.split(`/${base.name}/`)[0]}/_images/thumbs/${id}.webp`;
+  return `<figure class="gfig"><a class="g-photo" href="/image/${id}" data-link><img loading="lazy" src="${thumb}" alt="ImageNet validation image ${id}"></a>
+    <figcaption>ImageNet validation image ${id}, a fire screen: ${n ? `${n} units and SAE features` : "hundreds of units"} across the three networks
+      rank it among their top examples. Its page lists them by network and layer and shows where each unit looked.</figcaption></figure>`;
+}
+
+// a matched pair across networks, with its correlation (similar.py, /compare)
+async function figCompare() {
+  const inc = gModel(), vgg = manifest.models.find(m => m.name === "vgg19");
+  const a = ["mixed3b", 379], b = ["conv4_2", 306];
+  const sim = await getJSON(assetUrl(inc, a[0], `similar/${Math.floor(a[1] / 256)}.json`));
+  const r = (sim[a[1]]?.vgg19 || []).find(([l, u]) => l === b[0] && u === b[1])?.[2];
+  const [la, lb] = await Promise.all([getLabels(inc, a[0]), getLabels(vgg, b[0])]);
+  const side = (m, [l, u], lab) => `<a href="${unitPath(m, l, u)}" data-link><img loading="lazy" src="${visUrl(m, l, u)}" alt="">
+    <b>${esc(m.title)} ${l} ${u}</b><span>${esc(lab[u]?.label || "")}</span></a>`;
+  return `<figure class="gfig"><div class="g-pair">${side(inc, a, la)}<div class="g-r">${r != null ? `r ${r.toFixed(2)}` : ""}</div>${side(vgg, b, lb)}</div>
+    <figcaption>A curve detector in InceptionV1 and its closest unit in VGG19, a different network trained separately. They fire on the
+      same images. <a href="/compare?a=inceptionv1/${a[0]}/${a[1]}&b=vgg19/${b[0]}/${b[1]}" data-link>Compare them</a>.</figcaption></figure>`;
+}
+
 const GLOSSARY = [
   ["The basics", [
     ["unit", "Unit (channel)", `One detector inside a layer. A channel looks at every position of the image and reports how strongly its
@@ -765,6 +790,11 @@ const GLOSSARY = [
       the network is weighted sums plus on/off switches. At its peak a unit responds in exact proportion to its inputs.`, figGradAbl],
     ["excite-inhibit", "Excites / inhibits", `Excites: turning that unit up turns this one up. Inhibits: it pushes this one down, often
       meaning "fire for X, but not when Y is present", like a curve detector suppressed by wavy lines.`],
+    ["circuit-graph", "Circuit graph", `The circuit panel draws the same numbers as a graph: layers run left (input) to right (output), the
+      current unit sits in the middle, and each line is a connection whose thickness is its share of the receiving unit's activation,
+      green for excites and red for inhibits. <b>2 hops</b> adds the units that build this unit's inputs and the ones its outputs feed,
+      which shows shared ingredients a list can't. The slider hides weak connections; click any unit to recenter on it. <b>List</b>
+      switches back to tiles.`],
   ]],
   ["SAE features: splitting channels into cleaner parts", [
     ["sae", "SAE features (sparse autoencoder)", `A second way to divide up a layer. A sparse autoencoder is a small model trained to rewrite
@@ -783,6 +813,18 @@ const GLOSSARY = [
       on held-out images: a good but not perfect account of the layer. Some features latch onto dataset quirks, such as feature 2320,
       which fires on a photographer's watermark that appears on canoe photos.`,
       () => figUnitWithExamples("mixed4a", 2320, { sae: true, n: 4, caption: "SAE feature 2320: the shared watermark, not the canoe." })],
+  ]],
+  ["Exploring across networks", [
+    ["image-pages", "Image pages", `Click any dataset example to open its photo's page. It lists every unit, in all three networks and the SAE
+      features, that ranks the photo among its 16 top examples, grouped by network and layer, each with the part of the photo it
+      responded to. Hover an entry to see its crop on the photo. It is the quickest way to see how different networks take apart the
+      same picture. <a href="/image" data-link>Open a random photo</a>.`, figImagePage],
+    ["compare", "Compare and similar units", `<a href="/compare" data-link>Compare</a> puts two units side by side. Pick one unit and
+      press <b>Find matches</b> to list its closest units in every network. Closeness is measured by behavior, not by label: all three
+      networks looked at the same 8,000 ImageNet photos, and <b>r</b> is the correlation of two units' peak activations photo by photo.
+      High r means they fire on the same photos, which usually, though not always, means they detect the same thing. Matches are
+      strongest in the middle layers and weak near the outputs (mixed5b). SAE features active on fewer than 1% of the photos are marked
+      "rare (noisy)".`, figCompare],
   ]],
 ];
 

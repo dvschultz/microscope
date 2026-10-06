@@ -23,3 +23,23 @@
 @media (max-width: 900px) { .cmp-grid { grid-template-columns: 1fr; } }
 .link.sim .lbl em { font-style: normal; color: var(--neg); }
 .link.sim.rare .w i { background: var(--faint); }
+
+/* /compare landing and match list */
+.cmp-form { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-end; margin: 8px 0 20px; }
+.cmp-pick { display: flex; gap: 10px; border: 1px solid var(--line); border-radius: 4px; padding: 8px 12px 10px; margin: 0; }
+.cmp-pick legend { color: var(--muted); padding: 0 4px; }
+.cmp-pick label { display: flex; flex-direction: column; gap: 3px; color: var(--muted); font-size: 12px; }
+.cmp-pick select, .cmp-pick input {
+  font: inherit; color: var(--text); background: var(--bg); border: 1px solid var(--line); border-radius: 3px; padding: 3px 6px;
+}
+.cmp-pick input { width: 80px; }
+.cmp-actions { display: flex; gap: 8px; }
+.cmp-actions button {
+  font: inherit; color: var(--text); background: var(--panel-2); border: 1px solid var(--line); border-radius: 3px; padding: 5px 12px; cursor: pointer;
+}
+.cmp-actions button:hover { border-color: var(--accent); color: var(--accent); }
+.cmp-pairs { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 8px; max-width: 1100px; }
+.cmp-pairs a { display: flex; flex-direction: column; gap: 3px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 4px; background: var(--panel); }
+.cmp-pairs a:hover { border-color: var(--accent); }
+.cmp-pairs span { color: var(--muted); font-size: 12px; }
+.cmp-unit img { width: 160px; height: 160px; margin-bottom: 4px; }

@@ -1,11 +1,12 @@
 // compare extension: registers on window.MS (see the extension-points comment at the top of app.js)
-// Unit pages get a "Similar units in other networks" panel; /compare?a=<model>/<layer>/<unit>&b=… shows two units side by side.
+// /compare: a picker; /compare?a=<model>/<layer>/<unit> lists that unit's closest matches in every network;
+// /compare?a=…&b=… shows two units side by side.
 // Data: site/assets/<model>/<layer>/similar/<unit // 256>.json from similar.py, {unit: {model: [[layer, unit, r, rare?], ...]}}: the top 8 units in
 // every other model and the top 5 in the unit's own model's other layers, by Pearson r of per-image spatial-max activation.
 window.MS ||= {};
 (() => {
   const ms = window.MS;
-  ms.routes ||= {}; ms.unitPanels ||= [];
+  ms.routes ||= {};
   const N_IMAGES = "8,000";  // similar.py collect --n
   const SHARD = 256;  // similar.py SHARD
   const simUrl = (model, layer, unit) => assetUrl(model, layer, `similar/${Math.floor(unit / SHARD)}.json`);
@@ -50,24 +51,6 @@ window.MS ||= {};
         <a class="cmp" href="${compareHref(srcRef, ref(m, l, u))}" data-link>compare</a></div>`;
     }).join("")}</div>`;
   }
-
-  ms.unitPanels.push(async ({ model, layer, unit, el }) => {
-    const sim = await getJSON(simUrl(model, layer.name, unit));
-    const entry = sim[unit];
-    if (!entry || !el.isConnected) return;
-    const label = await labelsFor(entry);
-    if (!el.isConnected) return;
-    const srcRef = ref(model, layer.name, unit);
-    const groups = orderKeys(model, entry).map(k =>
-      `<h3>${esc(groupTitle(model, k))}</h3>${simTiles(model, srcRef, k, entry[k], label)}`).join("");
-    const sec = document.createElement("section");
-    sec.className = "sim-panel";
-    sec.innerHTML = `<h2>Similar units in other networks</h2>
-      <p class="sub">Units whose response rises and falls with this ${model.base ? "feature" : "unit"}'s across ${N_IMAGES} ImageNet validation
-        images: r is the correlation of their peak activations, image by image. A high r means the two respond to the same images, which
-        often (not always) means the same feature. Each network sees the images with its own preprocessing.</p>${groups}`;
-    el.append(sec);
-  });
 
   // ---------- /compare
 
@@ -117,9 +100,74 @@ window.MS ||= {};
       ${altHtml}</section>`;
   }
 
+  // ---- picker: network (channels or SAE lens), layer, unit for each side
+  const PAIRS = [
+    ["inceptionv1/mixed3b/379", "vgg19/conv4_2/306", "a curve detector and its closest VGG19 unit"],
+    ["inceptionv1/mixed4a/50", "vgg19/conv4_1/473", "round-rim detectors in two networks"],
+    ["clip_rn50/layer4_1/1933", "inceptionv1/mixed4b/429", "dog faces in CLIP and InceptionV1"],
+    ["clip_rn50/layer4_1/1996", "inceptionv1/mixed4e/715", "faces in CLIP and InceptionV1"],
+    ["inceptionv1/mixed4a/2", "inceptionv1_sae/mixed4a/763", "a mixed channel and an SAE feature that uses it"],
+  ];
+  const lensTitle = m => m.base ? `${baseOf(m).title} · SAE features` : m.title;
+  function picker(id, init) {
+    const opts = manifest.models.map(m => `<option value="${m.name}"${m.name === init?.model.name ? " selected" : ""}>${esc(lensTitle(m))}</option>`).join("");
+    return `<fieldset class="cmp-pick" data-side="${id}"><legend>Unit ${id.toUpperCase()}</legend>
+      <label>Network <select name="model">${opts}</select></label>
+      <label>Layer <select name="layer"></select></label>
+      <label>Unit <input name="unit" type="number" min="0" value="${init ? init.unit : 0}"></label></fieldset>`;
+  }
+  function wirePicker(el, init) {
+    const [mSel, lSel, uIn] = ["model", "layer", "unit"].map(n => el.querySelector(`[name=${n}]`));
+    const fillLayers = layerName => {
+      const m = findModel(mSel.value);
+      lSel.innerHTML = m.layers.map(l => `<option value="${l.name}"${l.name === layerName ? " selected" : ""}>${l.name} (${l.channels})</option>`).join("");
+      uIn.max = m.layers.find(l => l.name === lSel.value).channels - 1;
+    };
+    mSel.addEventListener("change", () => fillLayers());
+    lSel.addEventListener("change", () => { uIn.max = findModel(mSel.value).layers.find(l => l.name === lSel.value).channels - 1; });
+    fillLayers(init?.layer.name);
+    return () => `${mSel.value}/${lSel.value}/${Math.min(Math.max(0, Number(uIn.value) || 0), Number(uIn.max))}`;
+  }
+
+  async function landing(a) {
+    setCrumbs([["Compare"]]);
+    document.title = "Compare · Microscope";
+    mount(column("main", "Compare", `<h1>Compare units</h1>
+      <p class="sub">Put any two units side by side: feature visualizations, top dataset examples, labels and how closely they track each other
+        across ${N_IMAGES} ImageNet validation images. Pick one unit and press <b>Find matches</b> to see its closest units in every network.</p>
+      <div class="cmp-form">${picker("a", a)}${picker("b")}
+        <div class="cmp-actions"><button data-go="pair">Compare A and B</button><button data-go="matches">Find matches for A</button></div></div>
+      <h3>Try these</h3>
+      <div class="cmp-pairs">${PAIRS.map(([x, y, why]) => `<a href="${compareHref(x, y)}" data-link><b>${esc(why)}</b><span>${esc(x)} vs ${esc(y)}</span></a>`).join("")}</div>`));
+    const getA = wirePicker(document.querySelector('[data-side="a"]'), a), getB = wirePicker(document.querySelector('[data-side="b"]'));
+    document.querySelector(".cmp-actions").addEventListener("click", e => {
+      const go = e.target.closest("button")?.dataset.go;
+      if (go === "pair") navigate(compareHref(getA(), getB()));
+      if (go === "matches") navigate(`/compare?a=${getA()}`);
+    });
+  }
+
+  async function matches(a) {
+    setCrumbs([["Compare", "/compare"], [`Matches for ${a.ref}`]]);
+    document.title = `Matches for ${a.layer.name}:${a.unit} · Compare · Microscope`;
+    const sim = await getJSON(simUrl(a.model, a.layer.name, a.unit));
+    const entry = sim[a.unit] || {};
+    const label = await labelsFor(entry);
+    const groups = orderKeys(a.model, entry).map(k => `<h3>${esc(groupTitle(a.model, k))}</h3>${simTiles(a.model, a.ref, k, entry[k], label)}`).join("");
+    mount(column("main", "Compare", `<h1>Closest units to <a href="${unitPath(a.model, a.layer.name, a.unit)}" data-link>${esc(titleOf(a))}</a></h1>
+      <p class="sub">Units whose response rises and falls with this one across ${N_IMAGES} ImageNet validation images: r is the correlation of
+        their peak activations, image by image. A high r means the two respond to the same images, which often (not always) means the same
+        feature. Press <b>compare</b> under any unit to see the pair side by side.</p>
+      <div class="cmp-unit">${visImg(a.model, a.layer.name, a.unit)}</div>
+      ${groups || '<p class="muted">No match data for this unit.</p>'}`));
+  }
+
   ms.routes.compare = async ({ params }) => {
-    const a = parseRef(params.get("a")), b = parseRef(params.get("b"));
-    if (a.error || b.error) return notFound(null, `Compare needs ?a=<model>/<layer>/<unit>&b=<model>/<layer>/<unit>. ${a.error || b.error}`);
+    const pa = params.get("a"), pb = params.get("b");
+    const a = pa ? parseRef(pa) : null, b = pb ? parseRef(pb) : null;
+    if (a?.error || b?.error) return notFound(null, `Compare needs ?a=<model>/<layer>/<unit>&b=<model>/<layer>/<unit>. ${a?.error || b?.error}`);
+    if (!a) return landing();
+    if (!b) return matches(a);
     setCrumbs([["Compare"], [`${a.ref} vs ${b.ref}`]]);
     document.title = `${a.layer.name}:${a.unit} vs ${b.layer.name}:${b.unit} · Compare · Microscope`;
     const here = location.search;
